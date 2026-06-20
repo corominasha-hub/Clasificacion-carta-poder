@@ -135,20 +135,26 @@ export function updateDashboard(records, rejectedCount) {
 }
 
 /**
- * Render the main audit history table
+ * Render the main audit history table inside the admin modal (includes delete action)
  */
-export function renderHistoryTable(records, onRowClick) {
+export function renderHistoryTable(records, deleteRecordCallback, onRowClick, searchQuery = "") {
     const tbody = document.querySelector("#table-history tbody");
     if (!tbody) return;
     
     tbody.innerHTML = "";
 
-    if (records.length === 0) {
-        tbody.innerHTML = `<tr id="empty-row"><td colspan="5" class="text-center">No se han procesado documentos en esta sesión.</td></tr>`;
+    const query = searchQuery.toLowerCase().trim();
+    const filtered = records.filter(record => 
+        record.socio_no.includes(query) || 
+        record.nombre.toLowerCase().includes(query)
+    );
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr id="empty-row"><td colspan="6" class="text-center">No se han encontrado registros.</td></tr>`;
         return;
     }
 
-    records.forEach(record => {
+    filtered.forEach(record => {
         const tr = document.createElement("tr");
         tr.style.cursor = "pointer";
         tr.className = activeRecord && activeRecord.socio_no === record.socio_no ? "active-row" : "";
@@ -162,58 +168,26 @@ export function renderHistoryTable(records, onRowClick) {
         const badgeTypeClass = record.tipo === "Poder" ? "badge-poder" : "badge-carta";
         const badgeStatusClass = record.estado === "Aprobado" ? "badge-status-approved" : "badge-status-duplicate";
 
+        // Display delete button for both active records and local rejected logs
+        const deleteButtonHtml = `
+            <button class="btn btn-icon btn-danger-icon" data-socio="${record.socio_no}" title="Eliminar Registro">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--color-danger);"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+            </button>
+        `;
+
         tr.innerHTML = `
             <td><strong>${record.socio_no}</strong></td>
             <td>${record.nombre}</td>
             <td><span class="badge ${badgeTypeClass}">${record.tipo}</span></td>
             <td>${formatDate(record.fecha)}</td>
             <td><span class="badge ${badgeStatusClass}">${record.estado}</span></td>
-        `;
-        tbody.appendChild(tr);
-    });
-}
-
-/**
- * Render the admin panel table with delete action
- */
-export function renderAdminTable(records, deleteRecordCallback, searchQuery = "") {
-    const tbody = document.querySelector("#admin-table tbody");
-    if (!tbody) return;
-    
-    tbody.innerHTML = "";
-
-    const query = searchQuery.toLowerCase().trim();
-    const filtered = records.filter(record => 
-        record.socio_no.includes(query) || 
-        record.nombre.toLowerCase().includes(query)
-    );
-
-    if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="text-center">Ningún socio registrado coincide con la búsqueda.</td></tr>`;
-        return;
-    }
-
-    filtered.forEach(record => {
-        const tr = document.createElement("tr");
-        const badgeTypeClass = record.tipo === "Poder" ? "badge-poder" : "badge-carta";
-
-        tr.innerHTML = `
-            <td><strong>${record.socio_no}</strong></td>
-            <td>${record.nombre}</td>
-            <td><span class="badge ${badgeTypeClass}">${record.tipo}</span></td>
-            <td>${formatDate(record.fecha)}</td>
-            <td><span class="badge badge-status-approved">Activo</span></td>
-            <td>
-                <button class="btn btn-icon btn-danger-icon" data-socio="${record.socio_no}" title="Eliminar Registro">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--color-danger);"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
-                </button>
-            </td>
+            <td>${deleteButtonHtml}</td>
         `;
         
         const deleteBtn = tr.querySelector("button");
         deleteBtn.addEventListener("click", (e) => {
             e.stopPropagation();
-            deleteRecordCallback(record.socio_no);
+            deleteRecordCallback(record);
         });
 
         tbody.appendChild(tr);

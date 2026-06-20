@@ -55,7 +55,6 @@
                 <div class="tabs-container">
                     <button class="tab-btn active" data-tab="tab-upload">Subir Documento</button>
                     <button class="tab-btn" data-tab="tab-text">Pegar Texto</button>
-                    <button class="tab-btn" data-tab="tab-gemini">Configurar Gemini</button>
                 </div>
 
                 <div class="tab-content active" id="tab-upload">
@@ -89,34 +88,7 @@
                     </div>
                 </div>
 
-                <div class="tab-content" id="tab-gemini">
-                    <div class="gemini-settings">
-                        <p class="settings-desc">Por defecto, SocioCheck utiliza un extractor heurístico local que simula la IA. Si deseas conectar el sistema con <strong>Gemini API</strong> real para procesar PDFs e imágenes reales mediante visión de IA, introduce tus credenciales aquí:</p>
-                        
-                        <div class="form-group">
-                            <label for="gemini-key">API Key de Gemini:</label>
-                            <div class="input-password-wrapper">
-                                <input type="password" id="gemini-key" placeholder="AIzaSy...">
-                                <button type="button" id="toggle-key-visibility" class="btn-icon">👁️</button>
-                            </div>
-                            <small>Tu API Key se almacena de forma segura de forma local en tu navegador.</small>
-                        </div>
 
-                        <div class="form-group">
-                            <label for="gemini-model">Modelo a utilizar:</label>
-                            <select id="gemini-model">
-                                <option value="gemini-2.5-flash">Gemini 2.5 Flash (Recomendado - Rápido y Multimodal)</option>
-                                <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
-                            </select>
-                        </div>
-
-                        <div class="settings-actions">
-                            <button class="btn btn-secondary" id="btn-save-key">Guardar Configuración</button>
-                            <button class="btn btn-outline" id="btn-test-key" style="display:none;">Probar Conexión</button>
-                        </div>
-                        <div id="key-status-msg"></div>
-                    </div>
-                </div>
             </section>
 
             <!-- RIGHT COLUMN: Metrics & Charts -->
@@ -200,57 +172,7 @@
             </section>
 
             <!-- FULL WIDTH BOTTOM: Logs Table & Document Previewer Split -->
-            <section class="dashboard-panel audit-panel">
-                <div class="panel-header">
-                    <div class="panel-icon">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
-                    </div>
-                    <h2>Auditoría & Vista Previa de Documentos</h2>
-                </div>
 
-                <div class="audit-split-container">
-                    <!-- Left Side: Table -->
-                    <div class="table-column">
-                        <div class="table-wrapper">
-                            <table class="data-table" id="table-history">
-                                <thead>
-                                    <tr>
-                                        <th>Socio No.</th>
-                                        <th>Nombre Completo</th>
-                                        <th>Tipo</th>
-                                        <th>Fecha</th>
-                                        <th>Estado</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr id="empty-row">
-                                        <td colspan="5" class="text-center">No se han procesado documentos.</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                    
-                    <!-- Right Side: Previewer -->
-                    <div class="previewer-column" id="previewer-panel">
-                        <div class="previewer-header">
-                            <h3 id="previewer-title">Vista Previa</h3>
-                            <div class="previewer-zoom-controls">
-                                <button id="btn-zoom-out" class="btn-zoom" title="Alejar Zoom">−</button>
-                                <span id="zoom-level">100%</span>
-                                <button id="btn-zoom-in" class="btn-zoom" title="Acercar Zoom">+</button>
-                                <button id="btn-zoom-reset" class="btn-zoom" title="Restablecer Zoom">⟲</button>
-                            </div>
-                        </div>
-                        <div class="previewer-viewport" id="previewer-viewport">
-                            <div class="previewer-placeholder">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                                <p>Selecciona un registro para ver el documento</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
         </main>
 
         <!-- Footer -->
@@ -290,41 +212,117 @@
 
     <!-- ADMIN MODAL -->
     <div class="modal-overlay" id="modal-admin">
-        <div class="modal-card">
+        <div class="modal-card admin-modal-card">
             <div class="modal-header">
                 <div class="modal-title">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                    <h2>Panel de Administración de Asamblea</h2>
+                    <h2>Panel de Administración Seguro</h2>
                 </div>
                 <button class="btn-close" id="btn-close-admin">&times;</button>
             </div>
-            <div class="modal-body">
-                <div class="admin-actions-bar">
-                    <div class="search-box">
-                        <input type="text" id="admin-search" placeholder="Buscar por Socio No. o Nombre...">
+            <div class="modal-body admin-modal-body">
+                <!-- Admin Tabs -->
+                <div class="tabs-container admin-tabs-container">
+                    <button class="tab-btn active" data-admin-tab="admin-tab-audit">Auditoría & Vista Previa</button>
+                    <button class="tab-btn" data-admin-tab="admin-tab-config">Configuración Gemini</button>
+                    <button class="tab-btn" data-admin-tab="admin-tab-actions">Mantenimiento</button>
+                </div>
+
+                <!-- Admin Tab Content 1: Auditoria (Split View) -->
+                <div class="admin-tab-content active" id="admin-tab-audit">
+                    <div class="admin-actions-bar" style="margin-bottom: 1rem;">
+                        <div class="search-box">
+                            <input type="text" id="admin-search" placeholder="Buscar por Socio No. o Nombre..." style="width: 100%;">
+                        </div>
                     </div>
-                    <div class="action-buttons">
-                        <button class="btn btn-outline" id="btn-export-csv">Exportar CSV</button>
-                        <button class="btn btn-danger" id="btn-clear-db">Vaciar BD</button>
+                    
+                    <div class="audit-split-container admin-split-container">
+                        <!-- Left Side: Table -->
+                        <div class="table-column">
+                            <div class="table-wrapper">
+                                <table class="data-table" id="table-history">
+                                    <thead>
+                                        <tr>
+                                            <th>Socio No.</th>
+                                            <th>Nombre Completo</th>
+                                            <th>Tipo</th>
+                                            <th>Fecha</th>
+                                            <th>Estado</th>
+                                            <th>Acción</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr id="empty-row">
+                                            <td colspan="6" class="text-center">No se han procesado documentos.</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <!-- Right Side: Previewer -->
+                        <div class="previewer-column" id="previewer-panel">
+                            <div class="previewer-header">
+                                <h3 id="previewer-title">Vista Previa</h3>
+                                <div class="previewer-zoom-controls">
+                                    <button id="btn-zoom-out" class="btn-zoom" title="Alejar Zoom">−</button>
+                                    <span id="zoom-level">100%</span>
+                                    <button id="btn-zoom-in" class="btn-zoom" title="Acercar Zoom">+</button>
+                                    <button id="btn-zoom-reset" class="btn-zoom" title="Restablecer Zoom">⟲</button>
+                                </div>
+                            </div>
+                            <div class="previewer-viewport" id="previewer-viewport">
+                                <div class="previewer-placeholder">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                                    <p>Selecciona un registro para ver el documento</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <div class="admin-table-container">
-                    <table class="data-table" id="admin-table">
-                        <thead>
-                            <tr>
-                                <th>Socio No.</th>
-                                <th>Nombre del Socio</th>
-                                <th>Tipo de Documento</th>
-                                <th>Fecha Registro</th>
-                                <th>Estado</th>
-                                <th>Acción</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- Dynamic Content -->
-                        </tbody>
-                    </table>
+                <!-- Admin Tab Content 2: Gemini Config -->
+                <div class="admin-tab-content" id="admin-tab-config">
+                    <div class="gemini-settings admin-settings-view">
+                        <p class="settings-desc" style="margin-bottom: 1.5rem; font-size: 0.85rem; color: var(--text-secondary);">Configura tu conexión directa con **Gemini API** para la extracción de OCR multimodal en tiempo real:</p>
+                        
+                        <div class="form-group" style="margin-bottom: 1.25rem;">
+                            <label for="gemini-key" style="display: block; margin-bottom: 0.5rem; font-size: 0.85rem; font-weight: 600;">API Key de Gemini:</label>
+                            <div class="input-password-wrapper" style="display: flex; gap: 0.5rem;">
+                                <input type="password" id="gemini-key" placeholder="AQ.Ab8RN6ID9FQJxRX8KuPrWgOl..." style="flex: 1; padding: 10px; border-radius: 8px; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); color: var(--text-primary);">
+                                <button type="button" id="toggle-key-visibility" class="btn-icon" style="padding: 10px; border-radius: 8px; background: rgba(255,255,255,0.05); cursor: pointer;">👁️</button>
+                            </div>
+                            <small style="display: block; margin-top: 0.25rem; font-size: 0.75rem; color: var(--text-muted);">Tu clave de API se almacena de forma local y segura en el servidor (`.env`).</small>
+                        </div>
+
+                        <div class="form-group" style="margin-bottom: 1.5rem;">
+                            <label for="gemini-model" style="display: block; margin-bottom: 0.5rem; font-size: 0.85rem; font-weight: 600;">Modelo a utilizar:</label>
+                            <select id="gemini-model" style="width: 100%; padding: 10px; border-radius: 8px; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); color: var(--text-primary);">
+                                <option value="gemini-2.5-flash">Gemini 2.5 Flash (Recomendado - Rápido y Multimodal)</option>
+                                <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                            </select>
+                        </div>
+
+                        <div class="settings-actions" style="display: flex; gap: 1rem;">
+                            <button class="btn btn-secondary" id="btn-save-key">Guardar Configuración</button>
+                            <button class="btn btn-outline" id="btn-test-key" style="display: none;">Probar Conexión</button>
+                        </div>
+                        <div id="key-status-msg" style="margin-top: 1rem; display: none;"></div>
+                    </div>
+                </div>
+
+                <!-- Admin Tab Content 3: Maintenance Actions -->
+                <div class="admin-tab-content" id="admin-tab-actions">
+                    <div class="maintenance-actions" style="display: flex; flex-direction: column; gap: 1.5rem; padding: 2rem; align-items: center; justify-content: center; height: 100%;">
+                        <h3 style="font-family: var(--font-display); font-size: 1.1rem; font-weight: 600;">Mantenimiento y Respaldo de Base de Datos</h3>
+                        <p style="font-size: 0.85rem; color: var(--text-secondary); text-align: center; max-width: 500px; line-height: 1.5;">
+                            Desde aquí puedes exportar los registros actuales a un archivo CSV estructurado o borrar permanentemente toda la base de datos (incluyendo las imágenes del servidor).
+                        </p>
+                        <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+                            <button class="btn btn-outline" id="btn-export-csv" style="padding: 12px 24px;">Exportar Base de Datos (CSV)</button>
+                            <button class="btn btn-danger" id="btn-clear-db" style="padding: 12px 24px;">Vaciar Base de Datos & Carpeta uploads</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

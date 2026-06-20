@@ -6,7 +6,7 @@ import { playSuccessChime, playWarningBeep } from './js/audio.js';
 import { getSecurityStatus, registerFailedAttempt, resetLockout, saveSessionToken, clearSessionToken, getSessionToken } from './js/security.js';
 import { fetchRecords, uploadDocument, deleteRecord, loginAdmin, clearAllDatabase } from './js/db.js';
 import { compressImage, callGeminiVisionAPI, callGeminiTextAPI, readFileAsText, readFileAsBase64, callGeminiWithRetry } from './js/api.js';
-import { showSpinner, hideSpinner, showToast, formatDate, updateDashboard, renderHistoryTable, renderAdminTable, updatePreviewer, initZoomControls } from './js/ui.js';
+import { showSpinner, hideSpinner, showToast, formatDate, updateDashboard, renderHistoryTable, updatePreviewer, initZoomControls } from './js/ui.js';
 
 // Local State
 let activeRecords = [];      // Records fetched from backend
@@ -131,12 +131,21 @@ function refreshAppUI() {
     // Sort combined history by date descending
     combinedHistory.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
 
+    // Get search query from input if it exists
+    const searchInput = document.getElementById("admin-search");
+    const query = searchInput ? searchInput.value : "";
+
     // Render components
     updateDashboard(activeRecords, rejectedLogs.length);
-    renderHistoryTable(combinedHistory, (record) => {
-        selectedRecord = record;
-        updatePreviewer(record);
-    });
+    renderHistoryTable(
+        combinedHistory,
+        triggerRecordDelete,
+        (record) => {
+            selectedRecord = record;
+            updatePreviewer(record);
+        },
+        query
+    );
 
     // Sync localStorage for backup fallback
     localStorage.setItem("asamblea_db", JSON.stringify(activeRecords));
@@ -147,14 +156,26 @@ function setupEventListeners() {
     // Theme toggle
     document.getElementById("btn-theme").addEventListener("click", toggleTheme);
 
-    // Tab switcher
-    document.querySelectorAll(".tab-btn").forEach(btn => {
+    // Public Tab switcher
+    document.querySelectorAll("[data-tab]").forEach(btn => {
         btn.addEventListener("click", (e) => {
             const tabId = e.target.getAttribute("data-tab");
-            document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+            document.querySelectorAll("[data-tab]").forEach(b => b.classList.remove("active"));
             e.target.classList.add("active");
 
             document.querySelectorAll(".tab-content").forEach(content => content.classList.remove("active"));
+            document.getElementById(tabId).classList.add("active");
+        });
+    });
+
+    // Admin Tab switcher
+    document.querySelectorAll("[data-admin-tab]").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+            const tabId = e.target.getAttribute("data-admin-tab");
+            document.querySelectorAll("[data-admin-tab]").forEach(b => b.classList.remove("active"));
+            e.target.classList.add("active");
+
+            document.querySelectorAll(".admin-tab-content").forEach(content => content.classList.remove("active"));
             document.getElementById(tabId).classList.add("active");
         });
     });
@@ -306,8 +327,8 @@ function setupEventListeners() {
     });
 
     // Admin Panel actions
-    document.getElementById("admin-search").addEventListener("input", (e) => {
-        renderAdminTable(activeRecords, triggerRecordDelete, e.target.value);
+    document.getElementById("admin-search").addEventListener("input", () => {
+        refreshAppUI();
     });
 
     document.getElementById("btn-clear-db").addEventListener("click", triggerClearDatabase);
@@ -702,7 +723,7 @@ async function handleAdminLoginSubmit() {
         // Open admin dashboard
         document.getElementById("modal-admin").classList.add("open");
         document.getElementById("admin-search").value = "";
-        renderAdminTable(activeRecords, triggerRecordDelete, "");
+        refreshAppUI();
 
     } catch (err) {
         // Failed login
@@ -720,37 +741,56 @@ async function handleAdminLoginSubmit() {
 }
 
 // Delete individual record from admin dashboard
-async function triggerRecordDelete(socioNo) {
-    if (confirm(`¿Estás seguro de que deseas eliminar el registro del Socio No. ${socioNo}?`)) {
-        try {
-            await deleteRecord(socioNo);
-            
-            // Remove from local active list
-            activeRecords = activeRecords.filter(r => r.socio_no !== socioNo);
-            
-            // Log admin delete action
-            const deleteLog = {
-                socio_no: socioNo,
-                nombre: "Administración",
-                tipo: "Eliminar",
-                fecha: new Date().toISOString(),
-                estado: "Eliminado",
-                extracto: `[ADMIN] Registro de Socio No. ${socioNo} eliminado físicamente.`
-            };
-            rejectedLogs.unshift(deleteLog);
-            if (rejectedLogs.length > 50) rejectedLogs.pop();
+async function triggerRecordDelete(record) {
+    const socioNo = record.socio_no;
+    
+    if (record.estado === "Duplicado" || record.estado === "Eliminado" || record.estado === "Vaciado") {
+        // Delete local log
+        if (confirm(`¿Estás seguro de que deseas eliminar este registro de log del Socio No. ${socioNo}?`)) {
+            rejectedLogs = rejectedLogs.filter(r => r.fecha !== record.fecha);
             localStorage.setItem("asamblea_rejected", JSON.stringify(rejectedLogs));
-
+            
+            if (selectedRecord && selectedRecord.fecha === record.fecha) {
+                selectedRecord = null;
+                updatePreviewer(null);
+            }
+            
             refreshAppUI();
-            
-            // Refresh admin view
-            const query = document.getElementById("admin-search").value;
-            renderAdminTable(activeRecords, triggerRecordDelete, query);
-            
-            showToast("Registro Eliminado", `El socio ${socioNo} ha sido removido del sistema.`, "warning");
-        } catch (err) {
-            console.error(err);
-            showToast("Error de Servidor", "No se pudo eliminar el registro del servidor.", "error");
+            showToast("Log Eliminado", `El log del socio ${socioNo} ha sido eliminado.`, "warning");
+        }
+    } else {
+        // Delete approved record from server
+        if (confirm(`¿Estás seguro de que deseas eliminar el registro del Socio No. ${socioNo}?`)) {
+            try {
+                await deleteRecord(socioNo);
+                
+                // Remove from local active list
+                activeRecords = activeRecords.filter(r => r.socio_no !== socioNo);
+                
+                // Log admin delete action
+                const deleteLog = {
+                    socio_no: socioNo,
+                    nombre: record.nombre,
+                    tipo: record.tipo,
+                    fecha: new Date().toISOString(),
+                    estado: "Eliminado",
+                    extracto: `[ADMIN] Registro de Socio No. ${socioNo} eliminado físicamente.`
+                };
+                rejectedLogs.unshift(deleteLog);
+                if (rejectedLogs.length > 50) rejectedLogs.pop();
+                localStorage.setItem("asamblea_rejected", JSON.stringify(rejectedLogs));
+
+                if (selectedRecord && selectedRecord.socio_no === socioNo) {
+                    selectedRecord = null;
+                    updatePreviewer(null);
+                }
+
+                refreshAppUI();
+                showToast("Registro Eliminado", `El socio ${socioNo} ha sido removido del sistema.`, "warning");
+            } catch (err) {
+                console.error(err);
+                showToast("Error de Servidor", "No se pudo eliminar el registro del servidor.", "error");
+            }
         }
     }
 }
