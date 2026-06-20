@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SocioCheck AI - Clasificador de Documentos de Asamblea</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#3b82f6">
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -25,6 +27,10 @@
                 </div>
             </div>
             <div class="header-status">
+                <button id="btn-pwa-install" class="btn btn-outline" style="display: none; padding: 4px 10px; font-size: 0.8rem; height: 32px; gap: 6px; align-items: center; border-radius: 8px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--color-primary);"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    <span>Instalar App</span>
+                </button>
                 <div class="status-indicator online"></div>
                 <span>IA Activa</span>
                 <button id="btn-theme" class="btn-icon" title="Cambiar Tema">
@@ -193,34 +199,56 @@
                 </div>
             </section>
 
-            <!-- FULL WIDTH BOTTOM: Logs Table -->
-            <section class="dashboard-panel table-panel">
+            <!-- FULL WIDTH BOTTOM: Logs Table & Document Previewer Split -->
+            <section class="dashboard-panel audit-panel">
                 <div class="panel-header">
                     <div class="panel-icon">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
                     </div>
-                    <h2>Historial de Registro Reciente</h2>
+                    <h2>Auditoría & Vista Previa de Documentos</h2>
                 </div>
 
-                <div class="table-wrapper">
-                    <table class="data-table" id="table-history">
-                        <thead>
-                            <tr>
-                                <th>Socio No.</th>
-                                <th>Nombre Completo</th>
-                                <th>Tipo de Documento</th>
-                                <th>Fecha Procesado</th>
-                                <th>Estado</th>
-                                <th>Detalle / Extracto</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- Dynamic Rows will be inserted here -->
-                            <tr id="empty-row">
-                                <td colspan="6" class="text-center">No se han procesado documentos en esta sesión.</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <div class="audit-split-container">
+                    <!-- Left Side: Table -->
+                    <div class="table-column">
+                        <div class="table-wrapper">
+                            <table class="data-table" id="table-history">
+                                <thead>
+                                    <tr>
+                                        <th>Socio No.</th>
+                                        <th>Nombre Completo</th>
+                                        <th>Tipo</th>
+                                        <th>Fecha</th>
+                                        <th>Estado</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr id="empty-row">
+                                        <td colspan="5" class="text-center">No se han procesado documentos.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- Right Side: Previewer -->
+                    <div class="previewer-column" id="previewer-panel">
+                        <div class="previewer-header">
+                            <h3 id="previewer-title">Vista Previa</h3>
+                            <div class="previewer-zoom-controls">
+                                <button id="btn-zoom-out" class="btn-zoom" title="Alejar Zoom">−</button>
+                                <span id="zoom-level">100%</span>
+                                <button id="btn-zoom-in" class="btn-zoom" title="Acercar Zoom">+</button>
+                                <button id="btn-zoom-reset" class="btn-zoom" title="Restablecer Zoom">⟲</button>
+                            </div>
+                        </div>
+                        <div class="previewer-viewport" id="previewer-viewport">
+                            <div class="previewer-placeholder">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                                <p>Selecciona un registro para ver el documento</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </section>
         </main>
@@ -304,6 +332,6 @@
 
     <!-- TOAST NOTIFICATION CONTAINER -->
     <div class="toast-container" id="toast-container"></div>
-    <script src="app.js"></script>
+    <script type="module" src="app.js"></script>
 </body>
 </html>

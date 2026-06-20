@@ -14,3 +14,11 @@ desktop.ini
 
 # Agent files
 .agents/
+
+# Dependencies
+node_modules/
+
+# Environment variables
+.env
+data.json.tmp
+backups/
