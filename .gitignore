@@ -1,0 +1,16 @@
+# System files
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# IDE and Editor configs
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Agent files
+.agents/
