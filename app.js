@@ -13,6 +13,10 @@ let activeRecords = [];      // Records fetched from backend
 let rejectedLogs = [];       // Rejected (duplicate) attempts tracked locally in LocalStorage
 let selectedRecord = null;   // Active record for preview
 let securityInterval = null; // Lockout timer interval
+let uploadQueue = [];        // Queue of files to process
+let isProcessingQueue = false; // Whether the queue is currently processing
+let totalQueueFilesCount = 0; // Total count of files in the current batch
+let processedQueueFilesCount = 0; // Count of files processed in the current batch
 
 // Settings
 let geminiApiKey = '';
@@ -151,13 +155,13 @@ function setupEventListeners() {
         dropzone.classList.remove("dragover");
         const files = e.dataTransfer.files;
         if (files.length > 0) {
-            handleFileUpload(files[0]);
+            handleFilesUpload(files);
         }
     });
 
     fileInput.addEventListener("change", (e) => {
         if (e.target.files.length > 0) {
-            handleFileUpload(e.target.files[0]);
+            handleFilesUpload(e.target.files);
         }
     });
 
@@ -334,17 +338,75 @@ function runLocalFallbackClassification(text, filename = "") {
     return { tipo, socio_no, nombre_socio };
 }
 
+// Queue Manager: Handle multiple files upload
+function handleFilesUpload(files) {
+    const validFiles = Array.from(files).filter(file => {
+        const isValid = file.type === "text/plain" || file.type.startsWith("image/") || file.type === "application/pdf";
+        if (!isValid) {
+            showToast("Formato no soportado", `El archivo ${file.name} no tiene un formato válido y fue omitido.`, "warning");
+        }
+        return isValid;
+    });
+
+    if (validFiles.length === 0) return;
+
+    // Append to queue
+    uploadQueue = [...uploadQueue, ...validFiles];
+    totalQueueFilesCount += validFiles.length;
+
+    if (!isProcessingQueue) {
+        processNextInQueue();
+    }
+}
+
+// Process the next file in the queue recursively
+async function processNextInQueue() {
+    if (uploadQueue.length === 0) {
+        isProcessingQueue = false;
+        totalQueueFilesCount = 0;
+        processedQueueFilesCount = 0;
+        hideSpinner();
+        // Clear file input element
+        document.getElementById("file-input").value = "";
+        return;
+    }
+
+    isProcessingQueue = true;
+    const currentFile = uploadQueue[0];
+    processedQueueFilesCount++;
+
+    const statusText = `Archivo ${processedQueueFilesCount} de ${totalQueueFilesCount} (${currentFile.name})`;
+    showSpinner(statusText);
+
+    try {
+        let textContent = null;
+        if (currentFile.type === "text/plain") {
+            textContent = await readFileAsText(currentFile);
+        }
+
+        await processDocumentCore(currentFile, textContent, statusText);
+
+    } catch (error) {
+        console.error("Error processing queue file:", error);
+        playWarningBeep();
+        showToast("Error de Procesamiento", `Falló el procesamiento de ${currentFile.name}: ${error.message || error}`, "error");
+    } finally {
+        // Move to next file
+        uploadQueue.shift();
+        // Recurse
+        processNextInQueue();
+    }
+}
+
 // Core function to process document and upload to backend
-async function processDocument(file, textContent) {
-    showSpinner("Procesando documento con IA...");
-    
+async function processDocumentCore(file, textContent, statusText) {
     let result = { tipo_documento: 'Desconocido', socio_no: null, nombre_socio: '', resumen: '' };
     
     try {
         if (geminiApiKey) {
             // Real Gemini OCR analysis
             if (file && (file.type.startsWith("image/") || file.type === "application/pdf")) {
-                showSpinner("Comprimiendo imagen y analizando con Gemini Vision AI...");
+                showSpinner(`${statusText} - Comprimiendo y analizando con Gemini...`);
                 
                 // Compress image on client side if it is an image
                 const compressedFile = await compressImage(file);
@@ -356,13 +418,13 @@ async function processDocument(file, textContent) {
                 // Reassign the compressed file as active file for server upload
                 file = compressedFile;
             } else {
-                showSpinner("Analizando texto con Gemini AI...");
+                showSpinner(`${statusText} - Analizando texto con Gemini...`);
                 const response = await callGeminiTextAPI(textContent, geminiApiKey, geminiModel);
                 result = response;
             }
         } else {
             // Local fallback simulation
-            showSpinner("Analizando con extractor local (Simulado)...");
+            showSpinner(`${statusText} - Clasificando localmente...`);
             await new Promise(r => setTimeout(r, 1000)); // Short user latency delay
 
             let text = textContent || '';
@@ -393,14 +455,12 @@ async function processDocument(file, textContent) {
         // Validate 4-digit socio number
         const socioNo = result.socio_no;
         if (!socioNo || !/^\d{4}$/.test(socioNo)) {
-            hideSpinner();
             playWarningBeep();
             showToast("Documento Inválido", `No se detectó un número de socio de exactamente 4 dígitos (detectado: ${socioNo || 'ninguno'}).`, "error");
             return;
         }
 
         if (result.tipo_documento === "Desconocido") {
-            hideSpinner();
             playWarningBeep();
             showToast("Clasificación Fallida", "El documento no corresponde a un Poder ni a una Carta de Agenda válida.", "error");
             return;
@@ -409,7 +469,6 @@ async function processDocument(file, textContent) {
         // 1. Verify duplicates on already approved records
         const duplicate = activeRecords.find(r => r.socio_no === socioNo);
         if (duplicate) {
-            hideSpinner();
             playWarningBeep();
             showToast("DUPLICADO DETECTADO", `Socio ${socioNo} (${result.nombre_socio}) ya tiene un documento registrado como: ${duplicate.tipo}.`, "error");
             
@@ -432,7 +491,7 @@ async function processDocument(file, textContent) {
         }
 
         // 2. Approved! Upload to server to persist physical files and database
-        showSpinner("Guardando registro en servidor local...");
+        showSpinner(`${statusText} - Guardando en servidor...`);
         
         // Client side image compression before upload (if we didn't do it for Gemini already)
         if (file && file.type.startsWith("image/") && !geminiApiKey) {
@@ -449,38 +508,31 @@ async function processDocument(file, textContent) {
 
         // Add to active list
         activeRecords.unshift(savedRecord);
-        hideSpinner();
         playSuccessChime();
         showToast("Registro Exitoso", `Socio ${socioNo} (${result.nombre_socio}) registrado correctamente.`, "success");
 
         refreshAppUI();
-        
-        // Clear inputs
-        document.getElementById("text-raw").value = "";
-        document.getElementById("file-input").value = "";
 
     } catch (err) {
-        hideSpinner();
-        playWarningBeep();
-        console.error(err);
-        showToast("Error de Procesamiento", err.message || "Ocurrió un error guardando el registro.", "error");
-    }
-}
-
-// Upload file handler
-function handleFileUpload(file) {
-    if (file.type === "text/plain") {
-        readFileAsText(file).then(text => processDocument(file, text));
-    } else if (file.type.startsWith("image/") || file.type === "application/pdf") {
-        processDocument(file, null);
-    } else {
-        showToast("Formato no soportado", "Soporta imágenes (PNG/JPG), PDFs o archivos .txt", "error");
+        throw err; // Re-throw to be caught by processNextInQueue
     }
 }
 
 // Upload pasted text handler
 function handleTextUpload(text) {
-    processDocument(null, text);
+    showSpinner("Procesando texto pegado...");
+    processDocumentCore(null, text, "Procesando texto")
+        .then(() => {
+            hideSpinner();
+            document.getElementById("text-raw").value = "";
+            showToast("Éxito", "Texto procesado y guardado correctamente.", "success");
+        })
+        .catch(err => {
+            hideSpinner();
+            playWarningBeep();
+            console.error(err);
+            showToast("Error de Procesamiento", err.message || "Ocurrió un error guardando el registro.", "error");
+        });
 }
 
 // Admin Security / Login
