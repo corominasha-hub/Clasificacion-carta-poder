@@ -201,6 +201,47 @@ function setupEventListeners() {
         showToast("Éxito", "Configuración guardada.", "success");
     });
 
+    // Test Gemini Connection
+    const testKeyBtn = document.getElementById("btn-test-key");
+    if (testKeyBtn) {
+        testKeyBtn.addEventListener("click", async () => {
+            if (!geminiApiKey) {
+                showToast("Error", "Por favor ingresa una API Key primero.", "error");
+                return;
+            }
+
+            const msgDiv = document.getElementById("key-status-msg");
+            if (msgDiv) {
+                msgDiv.className = "info";
+                msgDiv.textContent = "Probando conexión con Gemini...";
+                msgDiv.style.display = "block";
+            }
+
+            try {
+                // Call Gemini Text API with a simple test prompt
+                await callGeminiTextAPI("Di la palabra 'OK'", geminiApiKey, geminiModel);
+                
+                if (msgDiv) {
+                    msgDiv.className = "success";
+                    msgDiv.textContent = "¡Conexión Exitosa! Gemini respondió correctamente.";
+                    msgDiv.style.display = "block";
+                    setTimeout(() => msgDiv.style.display = "none", 4000);
+                }
+                showToast("Conexión Exitosa", "La API Key de Gemini es válida y el modelo responde correctamente.", "success");
+                
+            } catch (err) {
+                console.error("Test connection failed:", err);
+                if (msgDiv) {
+                    msgDiv.className = "error";
+                    msgDiv.textContent = `Error de conexión: ${err.message || err}`;
+                    msgDiv.style.display = "block";
+                }
+                playWarningBeep();
+                showToast("Conexión Fallida", `No se pudo conectar con Gemini API: ${err.message || 'Verifica tu clave'}`, "error");
+            }
+        });
+    }
+
     // Gemini visibility toggle
     document.getElementById("toggle-key-visibility").addEventListener("click", () => {
         const keyInput = document.getElementById("gemini-key");
