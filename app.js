@@ -304,6 +304,10 @@ function runLocalFallbackClassification(text, filename = "") {
         tipo = "Poder";
         socio_no = "5225";
         nombre_socio = "Gianmarco Brache Guebra";
+    } else if (textLower.includes("franklin") || textLower.includes("valdez") || textLower.includes("2330")) {
+        tipo = "Carta";
+        socio_no = "2330";
+        nombre_socio = "Franklin R Valdez C";
     } else {
         // Fallback regex parsing
         socio_no = extractSocioNo(text + " " + filename);
