@@ -218,8 +218,17 @@ function setupEventListeners() {
             }
 
             try {
-                // Call Gemini Text API with a simple test prompt
-                await callGeminiTextAPI("Di la palabra 'OK'", geminiApiKey, geminiModel);
+                // Call Gemini Text API with a simple test prompt using retries
+                await callGeminiWithRetry(
+                    () => callGeminiTextAPI("Di la palabra 'OK'", geminiApiKey, geminiModel),
+                    2, // 2 retries
+                    1000,
+                    (attempt, max, ms) => {
+                        if (msgDiv) {
+                            msgDiv.textContent = `Límite alcanzado. Reintentando ${attempt}/${max} en ${Math.round(ms/1000)}s...`;
+                        }
+                    }
+                );
                 
                 if (msgDiv) {
                     msgDiv.className = "success";
