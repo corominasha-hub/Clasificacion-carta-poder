@@ -70,6 +70,7 @@ export async function callGeminiVisionAPI(base64Data, mimeType, apiKey, model = 
    - 'nombre_socio': Es el nombre del socio titular (escribiente principal). Se encuentra escrito a mano en la primera línea en blanco después del texto impreso 'Quien suscribe, '. Extrae este nombre completo (ej. 'Marie Cris Farías Mere' o 'Gianmarco Brache Guebra'). Colócalo como el nombre completo. No extraigas el nombre del apoderado (que se encuentra más abajo en letra imprenta).
    - 'socio_no': Es el número de socio del titular. Se encuentra escrito a mano en la segunda línea en blanco después de 'No. De socio '. Debe ser un número de exactamente 4 dígitos (ej. '4462' o '5225'). No extraigas el número de socio del apoderado.
    - 'resumen': Un resumen breve de la acción del documento.
+IMPORTANTE: En el formulario físico, la primera línea contiene el nombre del socio titular (Poderdante) y la segunda línea contiene su número de socio de 4 dígitos. No extraigas los datos del apoderado (ej. León Antonio Rubio Cunillera, socio 3749) que se indican más abajo.
 Retorna un JSON puro, sin markdown (sin \`\`\`json ni similares), que contenga exactamente estas claves: 'tipo_documento' (valores 'Poder' o 'Carta'), 'socio_no' (string de 4 dígitos), 'nombre_socio' (string), 'resumen' (string). Si no hay socio_no de 4 dígitos válido, pon null.`;
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
@@ -120,6 +121,7 @@ export async function callGeminiTextAPI(text, apiKey, model = 'gemini-2.5-flash'
    - 'nombre_socio': Nombre del socio titular suscriptor. Se encuentra en la primera línea rellenable (después de 'Quien suscribe,'). Extrae el nombre completo (ej. 'Marie Cris Farías Mere' o 'Gianmarco Brache Guebra').
    - 'socio_no': Número de socio de exactamente 4 dígitos del socio titular suscriptor. Se encuentra en la segunda línea rellenable (después de 'No. De socio'). Extrae este número (ej. '4462' o '5225').
    - 'resumen': Extracto de la acción del documento.
+IMPORTANTE: En el formulario físico, la primera línea contiene el nombre del socio titular (Poderdante) y la segunda línea contiene su número de socio de 4 dígitos. No extraigas los datos del apoderado (ej. León Antonio Rubio Cunillera, socio 3749) que se indican más abajo.
 Retorna un JSON puro que contenga estrictamente las siguientes claves:
 {
   "tipo_documento": "Poder" | "Carta" | "Desconocido",
