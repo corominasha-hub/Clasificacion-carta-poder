@@ -69,7 +69,13 @@ function triggerGitSync(actionMessage) {
     });
 }
 
-// ----------------- API ROUTES -----------------
+// 0. Get API configurations (e.g. Gemini key)
+app.get('/api/config', (req, res) => {
+    res.json({
+        success: true,
+        gemini_api_key: process.env.GEMINI_API_KEY || ''
+    });
+});
 
 // 1. Get all records
 app.get('/api/records', (req, res) => {

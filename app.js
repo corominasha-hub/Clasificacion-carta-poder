@@ -37,7 +37,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 // Load settings from LocalStorage
 function loadSettings() {
-    geminiApiKey = localStorage.getItem("gemini_api_key") || "AIzaSyDQqr_TLfy-wxqN0DSjAsQLRRn-c1HVJQU";
+    // Clean old API Key if saved
+    if (localStorage.getItem("gemini_api_key") === "AIzaSyDQqr_TLfy-wxqN0DSjAsQLRRn-c1HVJQU") {
+        localStorage.removeItem("gemini_api_key");
+    }
+
+    geminiApiKey = localStorage.getItem("gemini_api_key") || "";
     geminiModel = localStorage.getItem("gemini_model") || "gemini-2.5-flash";
     isDarkMode = localStorage.getItem("theme") !== "light";
 
@@ -53,8 +58,25 @@ function loadSettings() {
 
 // Load initial records from server & rejected logs from LocalStorage
 async function loadInitialData() {
+    // 1. Fetch server configurations (like Gemini key) first
     try {
-        // Fetch approved records from backend
+        const configResp = await fetch('/api/config').then(r => r.json());
+        if (configResp.success && configResp.gemini_api_key) {
+            // Set it in local state if no custom key is saved in localStorage
+            if (!localStorage.getItem("gemini_api_key")) {
+                geminiApiKey = configResp.gemini_api_key;
+                const keyInput = document.getElementById("gemini-key");
+                if (keyInput) keyInput.value = geminiApiKey;
+                const testKeyBtn = document.getElementById("btn-test-key");
+                if (testKeyBtn) testKeyBtn.style.display = "inline-flex";
+            }
+        }
+    } catch (err) {
+        console.warn("Unable to fetch server configuration:", err);
+    }
+
+    // 2. Fetch approved records from backend
+    try {
         activeRecords = await fetchRecords();
     } catch (err) {
         console.error("Unable to load records from backend server. Using LocalStorage fallback.", err);
