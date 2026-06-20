@@ -21,16 +21,17 @@ export async function fetchRecords() {
 export async function uploadDocument(file, metadata) {
     try {
         const formData = new FormData();
-        if (file) {
-            formData.append('document', file);
-        }
         
-        // Append all metadata fields
+        // Append all metadata fields first so that they are parsed before the file in Multer
         formData.append('socio_no', metadata.socio_no);
         formData.append('nombre', metadata.nombre);
         formData.append('tipo', metadata.tipo);
         formData.append('extracto', metadata.extracto || '');
         formData.append('fecha', metadata.fecha || new Date().toISOString());
+
+        if (file) {
+            formData.append('document', file);
+        }
 
         const response = await fetch(`${API_BASE}/upload`, {
             method: 'POST',
