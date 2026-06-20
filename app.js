@@ -33,7 +33,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 // Load settings from LocalStorage
 function loadSettings() {
-    geminiApiKey = localStorage.getItem("gemini_api_key") || "";
+    geminiApiKey = localStorage.getItem("gemini_api_key") || "AIzaSyDQqr_TLfy-wxqN0DSjAsQLRRn-c1HVJQU";
     geminiModel = localStorage.getItem("gemini_model") || "gemini-2.5-flash";
     isDarkMode = localStorage.getItem("theme") !== "light";
 
