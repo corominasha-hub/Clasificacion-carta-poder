@@ -182,3 +182,35 @@ export function readFileAsBase64(file) {
         reader.readAsDataURL(file);
     });
 }
+
+/**
+ * Executes an API call function and retries it if it fails due to rate limiting (429),
+ * using exponential backoff with jitter.
+ */
+export async function callGeminiWithRetry(apiCallFn, maxRetries = 3, initialDelay = 1500, onRetry = null) {
+    let delay = initialDelay;
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+            return await apiCallFn();
+        } catch (error) {
+            const isRateLimit = error.message && (error.message.includes("429") || error.message.toLowerCase().includes("rate"));
+            
+            if (isRateLimit && attempt < maxRetries - 1) {
+                // Exponential backoff with jitter
+                const jitter = Math.random() * 1000; // 0 to 1 second random variation
+                const sleepTime = delay + jitter;
+                
+                console.warn(`[Gemini API Rate Limit 429] Intento ${attempt + 1}/${maxRetries} fallido. Reintentando en ${Math.round(sleepTime)}ms...`);
+                
+                if (onRetry) {
+                    onRetry(attempt + 1, maxRetries, sleepTime);
+                }
+                
+                await new Promise(resolve => setTimeout(resolve, sleepTime));
+                delay *= 2; // Double the base delay
+            } else {
+                throw error;
+            }
+        }
+    }
+}

@@ -5,7 +5,7 @@
 import { playSuccessChime, playWarningBeep } from './js/audio.js';
 import { getSecurityStatus, registerFailedAttempt, resetLockout, saveSessionToken, clearSessionToken, getSessionToken } from './js/security.js';
 import { fetchRecords, uploadDocument, deleteRecord, loginAdmin, clearAllDatabase } from './js/db.js';
-import { compressImage, callGeminiVisionAPI, callGeminiTextAPI, readFileAsText, readFileAsBase64 } from './js/api.js';
+import { compressImage, callGeminiVisionAPI, callGeminiTextAPI, readFileAsText, readFileAsBase64, callGeminiWithRetry } from './js/api.js';
 import { showSpinner, hideSpinner, showToast, formatDate, updateDashboard, renderHistoryTable, renderAdminTable, updatePreviewer, initZoomControls } from './js/ui.js';
 
 // Local State
@@ -404,23 +404,58 @@ async function processDocumentCore(file, textContent, statusText) {
     
     try {
         if (geminiApiKey) {
-            // Real Gemini OCR analysis
-            if (file && (file.type.startsWith("image/") || file.type === "application/pdf")) {
-                showSpinner(`${statusText} - Comprimiendo y analizando con Gemini...`);
+            try {
+                // Real Gemini OCR analysis
+                if (file && (file.type.startsWith("image/") || file.type === "application/pdf")) {
+                    showSpinner(`${statusText} - Comprimiendo y analizando con Gemini...`);
+                    
+                    // Compress image on client side if it is an image
+                    const compressedFile = await compressImage(file);
+                    const base64Data = await readFileAsBase64(compressedFile);
+                    const rawBase64 = base64Data.split(",")[1];
+                    
+                    const response = await callGeminiWithRetry(
+                        () => callGeminiVisionAPI(rawBase64, compressedFile.type, geminiApiKey, geminiModel),
+                        3, // max retries
+                        1500, // initial delay (1.5s)
+                        (attempt, max, ms) => {
+                            showSpinner(`${statusText} - Límite de API. Reintentando ${attempt}/${max} en ${Math.round(ms/1000)}s...`);
+                            showToast("Límite de API", `Límite alcanzado para ${file ? file.name : 'documento'}. Reintentando en ${Math.round(ms/1000)}s...`, "warning");
+                        }
+                    );
+                    result = response;
+                    // Reassign the compressed file as active file for server upload
+                    file = compressedFile;
+                } else {
+                    showSpinner(`${statusText} - Analizando texto con Gemini...`);
+                    const response = await callGeminiWithRetry(
+                        () => callGeminiTextAPI(textContent, geminiApiKey, geminiModel),
+                        3,
+                        1500,
+                        (attempt, max, ms) => {
+                            showSpinner(`${statusText} - Límite de API. Reintentando ${attempt}/${max} en ${Math.round(ms/1000)}s...`);
+                        }
+                    );
+                    result = response;
+                }
+            } catch (apiError) {
+                // Graceful fallback to local contingency classifier if Gemini rate limit persists
+                console.warn("Gemini API call failed after retries. Falling back to local classifier:", apiError);
+                showToast("Falla de API (Contingencia)", "Gemini API saturada. Procesando con extractor local de contingencia...", "warning");
                 
-                // Compress image on client side if it is an image
-                const compressedFile = await compressImage(file);
-                const base64Data = await readFileAsBase64(compressedFile);
-                const rawBase64 = base64Data.split(",")[1];
+                let text = textContent || '';
+                if (file && file.type === "text/plain") {
+                    text = await readFileAsText(file);
+                }
                 
-                const response = await callGeminiVisionAPI(rawBase64, compressedFile.type, geminiApiKey, geminiModel);
-                result = response;
-                // Reassign the compressed file as active file for server upload
-                file = compressedFile;
-            } else {
-                showSpinner(`${statusText} - Analizando texto con Gemini...`);
-                const response = await callGeminiTextAPI(textContent, geminiApiKey, geminiModel);
-                result = response;
+                const localExtract = runLocalFallbackClassification(text, file ? file.name : '');
+                
+                result = {
+                    tipo_documento: localExtract.tipo,
+                    socio_no: localExtract.socio_no,
+                    nombre_socio: localExtract.nombre_socio,
+                    resumen: `[CONTINGENCIA LOCAL] Clasificado localmente como ${localExtract.tipo} debido a saturación en Gemini API.`
+                };
             }
         } else {
             // Local fallback simulation
