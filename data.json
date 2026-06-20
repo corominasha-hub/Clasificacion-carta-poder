@@ -1,5 +1,14 @@
 [
   {
+    "socio_no": "8172",
+    "nombre": "Maria alejandra pichardo",
+    "tipo": "Carta",
+    "fecha": "2026-06-20T02:38:54.841Z",
+    "estado": "Aprobado",
+    "extracto": "Solicitud para eliminar la restricción de invitados al club.",
+    "file_path": "/uploads/sin_socio_usuario.pdf"
+  },
+  {
     "socio_no": "5661",
     "nombre": "Rony Antonio Joubert Hued",
     "tipo": "Poder",
