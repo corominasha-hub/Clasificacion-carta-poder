@@ -49,11 +49,9 @@ function loadSettings() {
     // Update settings DOM if present
     const keyInput = document.getElementById("gemini-key");
     const modelSelect = document.getElementById("gemini-model");
-    const testKeyBtn = document.getElementById("btn-test-key");
 
     if (keyInput) keyInput.value = geminiApiKey;
     if (modelSelect) modelSelect.value = geminiModel;
-    if (testKeyBtn && geminiApiKey) testKeyBtn.style.display = "inline-flex";
 }
 
 // Load initial records from server & rejected logs from LocalStorage
@@ -67,8 +65,6 @@ async function loadInitialData() {
                 geminiApiKey = configResp.gemini_api_key;
                 const keyInput = document.getElementById("gemini-key");
                 if (keyInput) keyInput.value = geminiApiKey;
-                const testKeyBtn = document.getElementById("btn-test-key");
-                if (testKeyBtn) testKeyBtn.style.display = "inline-flex";
             }
         }
     } catch (err) {
@@ -228,13 +224,6 @@ function setupEventListeners() {
         geminiApiKey = key;
         geminiModel = model;
 
-        const testKeyBtn = document.getElementById("btn-test-key");
-        if (geminiApiKey) {
-            testKeyBtn.style.display = "inline-flex";
-        } else {
-            testKeyBtn.style.display = "none";
-        }
-
         const msgDiv = document.getElementById("key-status-msg");
         msgDiv.className = "success";
         msgDiv.textContent = "Configuración guardada exitosamente.";
@@ -248,7 +237,10 @@ function setupEventListeners() {
     const testKeyBtn = document.getElementById("btn-test-key");
     if (testKeyBtn) {
         testKeyBtn.addEventListener("click", async () => {
-            if (!geminiApiKey) {
+            const typedKey = document.getElementById("gemini-key").value.trim();
+            const selectedModel = document.getElementById("gemini-model").value;
+
+            if (!typedKey) {
                 showToast("Error", "Por favor ingresa una API Key primero.", "error");
                 return;
             }
@@ -263,7 +255,7 @@ function setupEventListeners() {
             try {
                 // Call Gemini Text API with a simple test prompt using retries
                 await callGeminiWithRetry(
-                    () => callGeminiTextAPI("Di la palabra 'OK'", geminiApiKey, geminiModel),
+                    () => callGeminiTextAPI("Di la palabra 'OK'", typedKey, selectedModel),
                     2, // 2 retries
                     1000,
                     (attempt, max, ms) => {
