@@ -5,7 +5,7 @@
 import { playSuccessChime, playWarningBeep } from './js/audio.js';
 import { getSecurityStatus, registerFailedAttempt, resetLockout, saveSessionToken, clearSessionToken, getSessionToken } from './js/security.js';
 import { fetchRecords, uploadDocument, deleteRecord, loginAdmin, clearAllDatabase } from './js/db.js';
-import { compressImage, callGeminiVisionAPI, callGeminiTextAPI, readFileAsText, readFileAsBase64, callGeminiWithRetry } from './js/api.js';
+import { compressImage, callGeminiVisionAPI, callGeminiTextAPI, readFileAsText, readFileAsBase64, callGeminiWithRetry, testGeminiConnection } from './js/api.js';
 import { showSpinner, hideSpinner, showToast, formatDate, updateDashboard, renderHistoryTable, updatePreviewer, initZoomControls } from './js/ui.js';
 
 // Local State
@@ -253,9 +253,9 @@ function setupEventListeners() {
             }
 
             try {
-                // Call Gemini Text API with a simple test prompt using retries
+                // Call Gemini Connection Test using retries
                 await callGeminiWithRetry(
-                    () => callGeminiTextAPI("Di la palabra 'OK'", typedKey, selectedModel),
+                    () => testGeminiConnection(typedKey, selectedModel),
                     2, // 2 retries
                     1000,
                     (attempt, max, ms) => {
