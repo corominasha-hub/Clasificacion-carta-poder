@@ -54,10 +54,12 @@ class DBManager {
     add(record) {
         const records = this.read();
         
-        // Double check duplicates
-        const exists = records.some(r => r.socio_no === record.socio_no);
+        // Double check duplicates: reject only if there is a duplicate of the same type
+        // Ignore duplicate check for pending records (PEND_XXXX)
+        const isPending = record.socio_no && record.socio_no.startsWith("PEND_");
+        const exists = !isPending && records.some(r => r.socio_no === record.socio_no && r.tipo === record.tipo);
         if (exists) {
-            return { success: false, error: 'Socio duplicado en base de datos.' };
+            return { success: false, error: `Socio ${record.socio_no} ya tiene un documento de tipo ${record.tipo} registrado.` };
         }
 
         records.unshift(record);
@@ -66,12 +68,17 @@ class DBManager {
     }
 
     // Delete a record
-    delete(socioNo) {
+    delete(socioNo, tipo) {
         const records = this.read();
-        const filtered = records.filter(r => r.socio_no !== socioNo);
+        let filtered;
+        if (tipo) {
+            filtered = records.filter(r => !(r.socio_no === socioNo && r.tipo === tipo));
+        } else {
+            filtered = records.filter(r => r.socio_no !== socioNo);
+        }
         
         if (records.length === filtered.length) {
-            return { success: false, error: 'Socio no encontrado.' };
+            return { success: false, error: 'Registro no encontrado.' };
         }
 
         const success = this.writeRaw(filtered);

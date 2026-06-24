@@ -4,7 +4,7 @@
 
 import { playSuccessChime, playWarningBeep } from './js/audio.js';
 import { getSecurityStatus, registerFailedAttempt, resetLockout, saveSessionToken, clearSessionToken, getSessionToken } from './js/security.js';
-import { fetchRecords, uploadDocument, deleteRecord, loginAdmin, clearAllDatabase } from './js/db.js';
+import { fetchRecords, uploadDocument, deleteRecord, loginAdmin, clearAllDatabase, approvePendingRecord } from './js/db.js';
 import { compressImage, callGeminiVisionAPI, callGeminiTextAPI, readFileAsText, readFileAsBase64, callGeminiWithRetry, testGeminiConnection } from './js/api.js';
 import { showSpinner, hideSpinner, showToast, formatDate, updateDashboard, renderHistoryTable, updatePreviewer, initZoomControls } from './js/ui.js';
 
@@ -139,6 +139,14 @@ function refreshAppUI() {
         (record) => {
             selectedRecord = record;
             updatePreviewer(record);
+            
+            // Bind manual approval button if the record is pending
+            if (record.estado === "Pendiente") {
+                const approveBtn = document.getElementById("btn-manual-approve");
+                if (approveBtn) {
+                    approveBtn.addEventListener("click", () => handleManualApprove(record));
+                }
+            }
         },
         query
     );
@@ -572,45 +580,51 @@ async function processDocumentCore(file, textContent, statusText) {
             };
         }
 
-        // Validate 4-digit socio number
-        const socioNo = result.socio_no;
-        if (!socioNo || !/^\d{4}$/.test(socioNo)) {
-            playWarningBeep();
-            showToast("Documento Inválido", `No se detectó un número de socio de exactamente 4 dígitos (detectado: ${socioNo || 'ninguno'}).`, "error");
-            return;
-        }
-
         if (result.tipo_documento === "Desconocido") {
             playWarningBeep();
             showToast("Clasificación Fallida", "El documento no corresponde a un Poder ni a una Carta de Agenda válida.", "error");
             return;
         }
 
-        // 1. Verify duplicates on already approved records
-        const duplicate = activeRecords.find(r => r.socio_no === socioNo);
-        if (duplicate) {
-            playWarningBeep();
-            showToast("DUPLICADO DETECTADO", `Socio ${socioNo} (${result.nombre_socio}) ya tiene un documento registrado como: ${duplicate.tipo}.`, "error");
-            
-            // Log duplicate attempt locally
-            const rejectLog = {
-                socio_no: socioNo,
-                nombre: result.nombre_socio,
-                tipo: result.tipo_documento,
-                fecha: new Date().toISOString(),
-                estado: "Duplicado",
-                extracto: `[RECHAZADO] Duplicado del documento de tipo: ${duplicate.tipo}`
-            };
-            
-            rejectedLogs.unshift(rejectLog);
-            if (rejectedLogs.length > 50) rejectedLogs.pop();
-            localStorage.setItem("asamblea_rejected", JSON.stringify(rejectedLogs));
+        // Validate 4-digit socio number
+        const socioNo = result.socio_no;
+        const isSocioValid = socioNo && /^\d{4}$/.test(socioNo);
+        let finalSocioNo = socioNo;
+        let isPending = false;
 
-            refreshAppUI();
-            return;
+        if (!isSocioValid) {
+            isPending = true;
+            finalSocioNo = `PEND_${Date.now()}_${Math.round(Math.random() * 1000)}`;
+            result.nombre_socio = result.nombre_socio && result.nombre_socio !== "Socio Desconocido" ? result.nombre_socio : "Socio Sin Identificar";
         }
 
-        // 2. Approved! Upload to server to persist physical files and database
+        // 1. Verify duplicates on already approved records (only check for same type duplicates)
+        if (!isPending) {
+            const duplicate = activeRecords.find(r => r.socio_no === finalSocioNo && r.tipo === result.tipo_documento);
+            if (duplicate) {
+                playWarningBeep();
+                showToast("DUPLICADO DETECTADO", `Socio ${finalSocioNo} ya tiene un documento registrado como: ${duplicate.tipo}.`, "error");
+                
+                // Log duplicate attempt locally
+                const rejectLog = {
+                    socio_no: finalSocioNo,
+                    nombre: result.nombre_socio,
+                    tipo: result.tipo_documento,
+                    fecha: new Date().toISOString(),
+                    estado: "Duplicado",
+                    extracto: `[RECHAZADO] Duplicado del documento de tipo: ${duplicate.tipo}`
+                };
+                
+                rejectedLogs.unshift(rejectLog);
+                if (rejectedLogs.length > 50) rejectedLogs.pop();
+                localStorage.setItem("asamblea_rejected", JSON.stringify(rejectedLogs));
+
+                refreshAppUI();
+                return;
+            }
+        }
+
+        // 2. Upload to server to persist physical files and database
         showSpinner(`${statusText} - Guardando en servidor...`);
         
         // Client side image compression before upload (if we didn't do it for Gemini already)
@@ -619,7 +633,7 @@ async function processDocumentCore(file, textContent, statusText) {
         }
 
         const savedRecord = await uploadDocument(file, {
-            socio_no: socioNo,
+            socio_no: finalSocioNo,
             nombre: result.nombre_socio,
             tipo: result.tipo_documento,
             extracto: result.resumen,
@@ -629,7 +643,12 @@ async function processDocumentCore(file, textContent, statusText) {
         // Add to active list
         activeRecords.unshift(savedRecord);
         playSuccessChime();
-        showToast("Registro Exitoso", `Socio ${socioNo} (${result.nombre_socio}) registrado correctamente.`, "success");
+        
+        if (isPending) {
+            showToast("Documento Pendiente", `Socio sin número válido. Guardado como pendiente para revisión manual.`, "warning");
+        } else {
+            showToast("Registro Exitoso", `Socio ${finalSocioNo} (${result.nombre_socio}) registrado correctamente.`, "success");
+        }
 
         refreshAppUI();
 
@@ -752,12 +771,12 @@ async function triggerRecordDelete(record) {
         }
     } else {
         // Delete approved record from server
-        if (confirm(`¿Estás seguro de que deseas eliminar el registro del Socio No. ${socioNo}?`)) {
+        if (confirm(`¿Estás seguro de que deseas eliminar el registro de ${record.tipo} del Socio No. ${socioNo}?`)) {
             try {
-                await deleteRecord(socioNo);
+                await deleteRecord(socioNo, record.tipo);
                 
                 // Remove from local active list
-                activeRecords = activeRecords.filter(r => r.socio_no !== socioNo);
+                activeRecords = activeRecords.filter(r => !(r.socio_no === socioNo && r.tipo === record.tipo));
                 
                 // Log admin delete action
                 const deleteLog = {
@@ -766,13 +785,13 @@ async function triggerRecordDelete(record) {
                     tipo: record.tipo,
                     fecha: new Date().toISOString(),
                     estado: "Eliminado",
-                    extracto: `[ADMIN] Registro de Socio No. ${socioNo} eliminado físicamente.`
+                    extracto: `[ADMIN] Registro de ${record.tipo} de Socio No. ${socioNo} eliminado físicamente.`
                 };
                 rejectedLogs.unshift(deleteLog);
                 if (rejectedLogs.length > 50) rejectedLogs.pop();
                 localStorage.setItem("asamblea_rejected", JSON.stringify(rejectedLogs));
 
-                if (selectedRecord && selectedRecord.socio_no === socioNo) {
+                if (selectedRecord && selectedRecord.socio_no === socioNo && selectedRecord.tipo === record.tipo) {
                     selectedRecord = null;
                     updatePreviewer(null);
                 }
@@ -879,5 +898,49 @@ function setupPwaEvents() {
         navigator.serviceWorker.register('./sw.js')
             .then(reg => console.log('Service Worker registrado con éxito:', reg.scope))
             .catch(err => console.warn('Service Worker falló al registrarse:', err));
+    }
+}
+
+// Handle manual entry approval for a pending record
+async function handleManualApprove(record) {
+    const input = document.getElementById("manual-socio-no");
+    if (!input) return;
+    
+    const realSocioNo = input.value.trim();
+    if (!/^\d{4}$/.test(realSocioNo)) {
+        showToast("Formato Inválido", "El número de socio debe tener exactamente 4 dígitos.", "error");
+        playWarningBeep();
+        return;
+    }
+
+    // Verify duplicate locally first
+    const duplicate = activeRecords.find(r => r.socio_no === realSocioNo && r.tipo === record.tipo);
+    if (duplicate) {
+        showToast("Duplicado Detectado", `Socio ${realSocioNo} ya tiene un documento de tipo ${record.tipo} registrado.`, "error");
+        playWarningBeep();
+        return;
+    }
+
+    showSpinner("Aprobando entrada manual...");
+    try {
+        const updatedRecord = await approvePendingRecord(record.socio_no, realSocioNo);
+        
+        // Update local state
+        activeRecords = activeRecords.map(r => r.socio_no === record.socio_no && r.tipo === record.tipo ? updatedRecord : r);
+        selectedRecord = updatedRecord;
+        
+        hideSpinner();
+        playSuccessChime();
+        showToast("Entrada Aprobada", `Socio ${realSocioNo} aprobado correctamente.`, "success");
+        
+        // Refresh UI
+        refreshAppUI();
+        updatePreviewer(updatedRecord);
+        
+    } catch (err) {
+        hideSpinner();
+        playWarningBeep();
+        console.error(err);
+        showToast("Error de Aprobación", err.message || "No se pudo aprobar el registro.", "error");
     }
 }

@@ -144,10 +144,14 @@ export function renderHistoryTable(records, deleteRecordCallback, onRowClick, se
     tbody.innerHTML = "";
 
     const query = searchQuery.toLowerCase().trim();
-    const filtered = records.filter(record => 
-        record.socio_no.includes(query) || 
-        record.nombre.toLowerCase().includes(query)
-    );
+    const filtered = records.filter(record => {
+        const displaySocio = record.socio_no.startsWith("PEND_") ? "sin asignar" : record.socio_no.toLowerCase();
+        const displayEstado = record.estado.toLowerCase();
+        return displaySocio.includes(query) || 
+               record.nombre.toLowerCase().includes(query) ||
+               displayEstado.includes(query) ||
+               record.tipo.toLowerCase().includes(query);
+    });
 
     if (filtered.length === 0) {
         tbody.innerHTML = `<tr id="empty-row"><td colspan="6" class="text-center">No se han encontrado registros.</td></tr>`;
@@ -166,7 +170,11 @@ export function renderHistoryTable(records, deleteRecordCallback, onRowClick, se
         });
 
         const badgeTypeClass = record.tipo === "Poder" ? "badge-poder" : "badge-carta";
-        const badgeStatusClass = record.estado === "Aprobado" ? "badge-status-approved" : "badge-status-duplicate";
+        let badgeStatusClass = "badge-status-duplicate";
+        if (record.estado === "Aprobado") badgeStatusClass = "badge-status-approved";
+        else if (record.estado === "Pendiente") badgeStatusClass = "badge-status-pending";
+
+        const displaySocioNo = record.socio_no.startsWith("PEND_") ? "Sin Asignar" : record.socio_no;
 
         // Display delete button for both active records and local rejected logs
         const deleteButtonHtml = `
@@ -176,7 +184,7 @@ export function renderHistoryTable(records, deleteRecordCallback, onRowClick, se
         `;
 
         tr.innerHTML = `
-            <td><strong>${record.socio_no}</strong></td>
+            <td><strong>${displaySocioNo}</strong></td>
             <td>${record.nombre}</td>
             <td><span class="badge ${badgeTypeClass}">${record.tipo}</span></td>
             <td>${formatDate(record.fecha)}</td>
@@ -250,6 +258,17 @@ export function updatePreviewer(record) {
         `;
     }
 
+    let approvalFormHtml = "";
+    if (record.estado === "Pendiente") {
+        approvalFormHtml = `
+            <div class="pending-approval-actions" style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border-color); display: flex; gap: 0.5rem; align-items: center;">
+                <label for="manual-socio-no" style="font-weight: 600; font-size: 0.8rem; color: var(--color-warning);">Asignar Socio (4 dígitos):</label>
+                <input type="text" id="manual-socio-no" placeholder="Ej. 1234" maxlength="4" style="width: 80px; padding: 4px 8px; border-radius: 4px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: var(--text-primary); font-size: 0.8rem; font-weight: 600; text-align: center;" />
+                <button class="btn btn-primary" id="btn-manual-approve" style="padding: 4px 10px; font-size: 0.75rem; height: 26px;">Aprobar</button>
+            </div>
+        `;
+    }
+
     // Add document description below or inside the viewport
     viewport.innerHTML = `
         <div style="display: flex; flex-direction: column; height: 100%; width: 100%;">
@@ -258,9 +277,10 @@ export function updatePreviewer(record) {
             </div>
             <div class="previewer-details-card" style="padding: 1rem; border-top: 1px solid var(--border-color); background: rgba(0,0,0,0.1); font-size: 0.85rem; text-align: left;">
                 <strong style="color: var(--color-primary);">Extracto/Resultado de Clasificación:</strong>
-                <p style="margin-top: 4px; color: var(--text-secondary); white-space: normal; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;">
+                <p style="margin-top: 4px; color: var(--text-secondary); white-space: normal; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; margin-bottom: 0;">
                     ${record.extracto || 'Clasificación de documento exitosa.'}
                 </p>
+                ${approvalFormHtml}
             </div>
         </div>
     `;

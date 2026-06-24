@@ -831,6 +831,12 @@ body {
     font-weight: 700;
 }
 
+.badge-status-pending {
+    background-color: rgba(245, 158, 11, 0.1);
+    color: var(--color-warning);
+    font-weight: 700;
+}
+
 .doc-excerpt {
     font-family: monospace;
     font-size: 0.8rem;

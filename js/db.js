@@ -51,9 +51,10 @@ export async function uploadDocument(file, metadata) {
     }
 }
 
-export async function deleteRecord(socioNo) {
+export async function deleteRecord(socioNo, tipo) {
     try {
-        const response = await fetch(`${API_BASE}/records/${socioNo}`, {
+        const url = tipo ? `${API_BASE}/records/${socioNo}?tipo=${encodeURIComponent(tipo)}` : `${API_BASE}/records/${socioNo}`;
+        const response = await fetch(url, {
             method: 'DELETE'
         });
 
@@ -106,6 +107,29 @@ export async function clearAllDatabase() {
         return await response.json();
     } catch (error) {
         console.error("Clear database failed:", error);
+        throw error;
+    }
+}
+
+export async function approvePendingRecord(tempSocioNo, realSocioNo) {
+    try {
+        const response = await fetch(`${API_BASE}/records/approve`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ temp_socio_no: tempSocioNo, real_socio_no: realSocioNo })
+        });
+
+        if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            throw new Error(errData.error || `HTTP Error! Status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        return data.record;
+    } catch (error) {
+        console.error("Approve pending record failed:", error);
         throw error;
     }
 }

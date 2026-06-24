@@ -37,7 +37,13 @@ const storage = multer.diskStorage({
         const nombreRaw = req.body.nombre || 'usuario';
         const nombreClean = nombreRaw.toLowerCase().replace(/[^a-z0-9]/g, '_');
         const ext = path.extname(file.originalname) || '.png';
-        cb(null, `${socioNo}_${nombreClean}${ext}`);
+        
+        if (socioNo === 'pendiente' || socioNo.startsWith('PEND_') || !socioNo || socioNo === 'null' || socioNo === 'sin_socio') {
+            const uniqueSuffix = Date.now() + '_' + Math.round(Math.random() * 1E9);
+            cb(null, `pendiente_${uniqueSuffix}${ext}`);
+        } else {
+            cb(null, `${socioNo}_${nombreClean}${ext}`);
+        }
     }
 });
 
@@ -88,12 +94,17 @@ app.post('/api/upload', upload.single('document'), (req, res) => {
     try {
         const { socio_no, nombre, tipo, extracto, fecha } = req.body;
 
-        if (!socio_no || !/^\d{4}$/.test(socio_no)) {
-            return res.status(400).json({ success: false, error: 'Número de socio inválido (debe tener exactamente 4 dígitos).' });
-        }
-
         if (!nombre || !tipo) {
             return res.status(400).json({ success: false, error: 'Faltan campos requeridos (nombre o tipo).' });
+        }
+
+        let isPending = false;
+        let finalSocioNo = socio_no;
+        if (!socio_no || !/^\d{4}$/.test(socio_no)) {
+            isPending = true;
+            if (!socio_no || !socio_no.startsWith('PEND_')) {
+                finalSocioNo = `PEND_${Date.now()}_${Math.round(Math.random() * 1000)}`;
+            }
         }
 
         // Check if file was uploaded, save file path
@@ -103,11 +114,11 @@ app.post('/api/upload', upload.single('document'), (req, res) => {
         }
 
         const newRecord = {
-            socio_no,
+            socio_no: finalSocioNo,
             nombre,
             tipo,
             fecha: fecha || new Date().toISOString(),
-            estado: 'Aprobado',
+            estado: isPending ? 'Pendiente' : 'Aprobado',
             extracto: extracto || `Documento clasificado como ${tipo}.`,
             file_path: filePath
         };
@@ -123,7 +134,7 @@ app.post('/api/upload', upload.single('document'), (req, res) => {
         }
 
         // Trigger Git Sync in background
-        triggerGitSync(`Registro Socio ${socio_no} (${nombre})`);
+        triggerGitSync(`Registro Socio ${finalSocioNo} (${nombre})`);
 
         res.json({ success: true, record: newRecord });
 
@@ -136,24 +147,27 @@ app.post('/api/upload', upload.single('document'), (req, res) => {
 // 3. Delete Record & File
 app.delete('/api/records/:socio_no', (req, res) => {
     const { socio_no } = req.params;
+    const { tipo } = req.query;
 
     if (!socio_no) {
         return res.status(400).json({ success: false, error: 'Socio no. requerido.' });
     }
 
     const records = dbManager.read();
-    const target = records.find(r => r.socio_no === socio_no);
+    const target = records.find(r => r.socio_no === socio_no && (!tipo || r.tipo === tipo));
 
     if (!target) {
-        return res.status(404).json({ success: false, error: 'Socio no encontrado.' });
+        return res.status(404).json({ success: false, error: 'Registro no encontrado.' });
     }
 
     // Delete record from DB
-    const dbResult = dbManager.delete(socio_no);
+    const dbResult = dbManager.delete(socio_no, tipo);
 
     if (dbResult.success) {
         // Delete physical file from filesystem if exists
-        if (target.file_path) {
+        // Wait, make sure we only delete the file if no other record is using it
+        const isFileShared = records.some(r => r.file_path === target.file_path && !(r.socio_no === socio_no && r.tipo === target.tipo));
+        if (target.file_path && !isFileShared) {
             const absoluteFilePath = path.join(__dirname, target.file_path);
             if (fs.existsSync(absoluteFilePath)) {
                 try {
@@ -166,11 +180,75 @@ app.delete('/api/records/:socio_no', (req, res) => {
         }
 
         // Trigger Git Sync in background to reflect deletion on GitHub
-        triggerGitSync(`Eliminado Socio ${socio_no}`);
+        triggerGitSync(`Eliminado Socio ${socio_no} (${tipo || 'Todo'})`);
 
         res.json({ success: true, message: 'Registro y archivos asociados eliminados correctamente.' });
     } else {
         res.status(500).json({ success: false, error: dbResult.error || 'Error al eliminar de base de datos.' });
+    }
+});
+
+// 6. Approve Pending Record
+app.post('/api/records/approve', (req, res) => {
+    try {
+        const { temp_socio_no, real_socio_no } = req.body;
+
+        if (!temp_socio_no || !real_socio_no) {
+            return res.status(400).json({ success: false, error: 'Faltan campos requeridos (temp_socio_no o real_socio_no).' });
+        }
+
+        if (!/^\d{4}$/.test(real_socio_no)) {
+            return res.status(400).json({ success: false, error: 'El número de socio real debe tener exactamente 4 dígitos.' });
+        }
+
+        const records = dbManager.read();
+        const pendingRecord = records.find(r => r.socio_no === temp_socio_no);
+
+        if (!pendingRecord) {
+            return res.status(404).json({ success: false, error: 'Registro pendiente no encontrado.' });
+        }
+
+        // Check duplicates for the real socio number and same document type
+        const duplicate = records.find(r => r.socio_no === real_socio_no && r.tipo === pendingRecord.tipo);
+        if (duplicate) {
+            return res.status(400).json({ success: false, error: `El Socio No. ${real_socio_no} ya tiene un documento de tipo ${pendingRecord.tipo} registrado.` });
+        }
+
+        // Rename file if exists
+        let newFilePath = pendingRecord.file_path;
+        if (pendingRecord.file_path) {
+            const oldAbsPath = path.join(__dirname, pendingRecord.file_path);
+            if (fs.existsSync(oldAbsPath)) {
+                const ext = path.extname(pendingRecord.file_path);
+                const nombreClean = pendingRecord.nombre.toLowerCase().replace(/[^a-z0-9]/g, '_');
+                const newFileName = `${real_socio_no}_${nombreClean}${ext}`;
+                const newAbsPath = path.join(uploadsDir, newFileName);
+                
+                try {
+                    fs.renameSync(oldAbsPath, newAbsPath);
+                    newFilePath = `/uploads/${newFileName}`;
+                } catch (renameErr) {
+                    console.error("Error renaming file on approval:", renameErr);
+                }
+            }
+        }
+
+        // Update database record
+        pendingRecord.socio_no = real_socio_no;
+        pendingRecord.estado = 'Aprobado';
+        pendingRecord.file_path = newFilePath;
+
+        // Save records
+        dbManager.writeRaw(records);
+
+        // Trigger Git Sync
+        triggerGitSync(`Aprobado manual Socio ${real_socio_no} (${pendingRecord.nombre})`);
+
+        res.json({ success: true, record: pendingRecord });
+
+    } catch (error) {
+        console.error("Approval error:", error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor al procesar la aprobación.' });
     }
 });
 
