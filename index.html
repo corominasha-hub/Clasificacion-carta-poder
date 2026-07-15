@@ -230,9 +230,20 @@
 
                 <!-- Admin Tab Content 1: Auditoria (Split View) -->
                 <div class="admin-tab-content active" id="admin-tab-audit">
-                    <div class="admin-actions-bar" style="margin-bottom: 1rem;">
-                        <div class="search-box">
+                    <div class="admin-actions-bar" style="margin-bottom: 1rem; display: flex; gap: 1rem; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+                        <div class="search-box" style="flex: 1; min-width: 250px;">
                             <input type="text" id="admin-search" placeholder="Buscar por Socio No. o Nombre..." style="width: 100%;">
+                        </div>
+                        <div class="print-controls" style="display: flex; gap: 0.5rem; align-items: center;">
+                            <select id="admin-print-type" style="padding: 10px 14px; border-radius: 8px; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); color: var(--text-primary); cursor: pointer; font-size: 0.85rem;">
+                                <option value="todos">Todos los Documentos</option>
+                                <option value="Carta">Solo Cartas</option>
+                                <option value="Poder">Solo Poderes</option>
+                            </select>
+                            <button class="btn btn-secondary" id="btn-admin-print" style="padding: 10px 16px; font-size: 0.85rem; display: flex; align-items: center; gap: 0.5rem;">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle;"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                                Imprimir
+                            </button>
                         </div>
                     </div>
                     

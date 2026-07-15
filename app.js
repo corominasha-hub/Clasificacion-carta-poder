@@ -333,6 +333,11 @@ function setupEventListeners() {
 
     document.getElementById("btn-clear-db").addEventListener("click", triggerClearDatabase);
     document.getElementById("btn-export-csv").addEventListener("click", triggerExportCSV);
+    
+    const printBtn = document.getElementById("btn-admin-print");
+    if (printBtn) {
+        printBtn.addEventListener("click", triggerPrintDocuments);
+    }
 }
 
 // Check if a 4-digit socio number is extractable
@@ -862,6 +867,257 @@ function triggerExportCSV() {
     document.body.removeChild(link);
     
     showToast("Exportación Exitosa", "Se ha descargado el archivo CSV.", "success");
+}
+
+// Open popup and trigger batch print of documents
+function triggerPrintDocuments() {
+    const typeSelect = document.getElementById("admin-print-type");
+    const selectedType = typeSelect ? typeSelect.value : "todos";
+    
+    let recordsToPrint = activeRecords;
+    if (selectedType !== "todos") {
+        recordsToPrint = activeRecords.filter(r => r.tipo === selectedType);
+    }
+    
+    // Only print records that have physical files
+    recordsToPrint = recordsToPrint.filter(r => r.file_path);
+    
+    if (recordsToPrint.length === 0) {
+        showToast("Sin documentos", `No hay documentos de tipo "${selectedType === 'todos' ? 'Todos' : selectedType}" para imprimir.`, "error");
+        playWarningBeep();
+        return;
+    }
+    
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+        showToast("Error", "No se pudo abrir la ventana de impresión. Por favor, permite ventanas emergentes.", "error");
+        playWarningBeep();
+        return;
+    }
+    
+    let html = `
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <title>Impresión de Documentos - SocioCheck AI</title>
+        <style>
+            body {
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                margin: 0;
+                padding: 0;
+                background-color: #f5f6f8;
+                color: #333;
+            }
+            .no-print-bar {
+                background: #1e293b;
+                color: #fff;
+                padding: 12px 24px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+                position: sticky;
+                top: 0;
+                z-index: 1000;
+            }
+            .no-print-bar span {
+                font-size: 14px;
+                font-weight: 500;
+            }
+            .btn-print {
+                background-color: #3b82f6;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                font-size: 14px;
+                font-weight: 600;
+                border-radius: 6px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                transition: background-color 0.2s;
+            }
+            .btn-print:hover {
+                background-color: #2563eb;
+            }
+            .documents-container {
+                max-width: 900px;
+                margin: 30px auto;
+                padding: 0 20px;
+            }
+            .document-page {
+                background: white;
+                border: 1px solid #e2e8f0;
+                border-radius: 8px;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+                padding: 30px;
+                margin-bottom: 40px;
+                page-break-after: always;
+                box-sizing: border-box;
+            }
+            .document-page:last-child {
+                page-break-after: avoid;
+                margin-bottom: 0;
+            }
+            .doc-header {
+                border-bottom: 2px solid #e2e8f0;
+                padding-bottom: 12px;
+                margin-bottom: 20px;
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+            }
+            .doc-header-left h2 {
+                margin: 0 0 6px 0;
+                font-size: 18px;
+                color: #0f172a;
+            }
+            .doc-header-left p {
+                margin: 0;
+                font-size: 13px;
+                color: #64748b;
+            }
+            .doc-badge {
+                padding: 4px 10px;
+                border-radius: 9999px;
+                font-size: 11px;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+            }
+            .badge-carta {
+                background-color: #ecfdf5;
+                color: #059669;
+            }
+            .badge-poder {
+                background-color: #eff6ff;
+                color: #2563eb;
+            }
+            .doc-content {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                min-height: 400px;
+                margin-top: 20px;
+                background-color: #f8fafc;
+                border: 1px solid #f1f5f9;
+                border-radius: 6px;
+                overflow: hidden;
+            }
+            .doc-img {
+                max-width: 100%;
+                max-height: 75vh;
+                object-fit: contain;
+            }
+            .doc-text {
+                width: 100%;
+                text-align: left;
+                white-space: pre-wrap;
+                font-family: 'Courier New', Courier, monospace;
+                font-size: 13px;
+                line-height: 1.5;
+                padding: 20px;
+                box-sizing: border-box;
+                background: #fff;
+                align-self: stretch;
+                overflow-y: auto;
+            }
+            .doc-pdf {
+                width: 100%;
+                height: 75vh;
+                border: none;
+            }
+            @media print {
+                .no-print-bar {
+                    display: none;
+                }
+                body {
+                    background-color: #fff;
+                }
+                .documents-container {
+                    max-width: 100%;
+                    margin: 0;
+                    padding: 0;
+                }
+                .document-page {
+                    border: none;
+                    box-shadow: none;
+                    padding: 0;
+                    margin: 0;
+                }
+                .doc-content {
+                    background-color: transparent;
+                    border: none;
+                    margin-top: 15px;
+                }
+                .doc-img {
+                    max-height: 85vh;
+                }
+                .doc-pdf {
+                    height: 85vh;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="no-print-bar">
+            <span>Impresión por lotes: <strong>${recordsToPrint.length}</strong> documento(s) encontrado(s) de tipo <strong>"${selectedType === 'todos' ? 'Todos' : selectedType}"</strong></span>
+            <button class="btn-print" onclick="window.print()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px;"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                Imprimir Documentos
+            </button>
+        </div>
+        <div class="documents-container">
+    `;
+    
+    recordsToPrint.forEach(record => {
+        const displaySocioNo = record.socio_no.startsWith("PEND_") ? "Sin Asignar" : record.socio_no;
+        const ext = record.file_path ? record.file_path.split('.').pop().toLowerCase() : '';
+        const badgeClass = record.tipo === "Poder" ? "badge-poder" : "badge-carta";
+        
+        let contentHtml = '';
+        if (ext === 'pdf') {
+            contentHtml = `<iframe src="${record.file_path}" class="doc-pdf"></iframe>`;
+        } else if (['jpg', 'jpeg', 'png', 'svg'].includes(ext)) {
+            contentHtml = `<img src="${record.file_path}" class="doc-img" alt="Documento" />`;
+        } else {
+            contentHtml = `<div class="doc-text">${record.extracto || 'Sin contenido de texto disponible.'}</div>`;
+        }
+        
+        html += `
+            <div class="document-page">
+                <div class="doc-header">
+                    <div class="doc-header-left">
+                        <h2>Socio No: ${displaySocioNo} - ${record.nombre}</h2>
+                        <p>Fecha de Registro: ${new Date(record.fecha).toLocaleString()} | Estado: ${record.estado}</p>
+                    </div>
+                    <span class="doc-badge ${badgeClass}">${record.tipo}</span>
+                </div>
+                <div class="doc-content">
+                    ${contentHtml}
+                </div>
+            </div>
+        `;
+    });
+    
+    html += `
+        </div>
+        <script>
+            // Auto-trigger print dialog after resources are loaded
+            window.addEventListener('load', () => {
+                setTimeout(() => {
+                    window.print();
+                }, 800);
+            });
+        </script>
+    </body>
+    </html>
+    `;
+    
+    printWindow.document.write(html);
+    printWindow.document.close();
 }
 
 // Setup PWA Events
