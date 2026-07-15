@@ -876,11 +876,11 @@ function triggerPrintDocuments() {
     
     let recordsToPrint = activeRecords;
     if (selectedType !== "todos") {
-        recordsToPrint = activeRecords.filter(r => r.tipo === selectedType);
+        recordsToPrint = activeRecords.filter(r => r.tipo && r.tipo.toLowerCase() === selectedType.toLowerCase());
     }
     
-    // Only print records that have physical files
-    recordsToPrint = recordsToPrint.filter(r => r.file_path);
+    // Print records that have either a file path or a text extract
+    recordsToPrint = recordsToPrint.filter(r => r.file_path || r.extracto);
     
     if (recordsToPrint.length === 0) {
         showToast("Sin documentos", `No hay documentos de tipo "${selectedType === 'todos' ? 'Todos' : selectedType}" para imprimir.`, "error");
