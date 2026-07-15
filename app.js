@@ -921,8 +921,12 @@ function triggerPrintDocuments() {
     <html lang="es">
     <head>
         <meta charset="UTF-8">
+        <meta name="color-scheme" content="light">
         <title>Impresión de Documentos</title>
         <style>
+            :root {
+                color-scheme: light !important;
+            }
             @page {
                 size: A4;
                 margin: 10mm;
@@ -931,10 +935,15 @@ function triggerPrintDocuments() {
                 font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
                 margin: 0;
                 padding: 0;
-                background-color: #fff;
-                color: #000;
+                background-color: #ffffff !important;
+                color: #000000 !important;
+            }
+            .documents-container {
+                background-color: #ffffff !important;
             }
             .document-page {
+                background-color: #ffffff !important;
+                color: #000000 !important;
                 padding: 20px;
                 margin-bottom: 20px;
                 page-break-after: always;
@@ -945,22 +954,23 @@ function triggerPrintDocuments() {
                 margin-bottom: 0;
             }
             .doc-header {
-                border-bottom: 2px solid #334155;
+                border-bottom: 2px solid #334155 !important;
                 padding-bottom: 8px;
                 margin-bottom: 20px;
                 display: flex;
                 justify-content: space-between;
                 align-items: flex-start;
+                background-color: #ffffff !important;
             }
             .doc-header-left h2 {
                 margin: 0 0 4px 0;
                 font-size: 18px;
-                color: #0f172a;
+                color: #000000 !important;
             }
             .doc-header-left p {
                 margin: 0;
                 font-size: 12px;
-                color: #475569;
+                color: #333333 !important;
             }
             .doc-badge {
                 padding: 4px 10px;
@@ -968,17 +978,17 @@ function triggerPrintDocuments() {
                 font-size: 11px;
                 font-weight: 700;
                 text-transform: uppercase;
-                border: 1px solid #ccc;
+                border: 1px solid #cccccc !important;
             }
             .badge-carta {
-                background-color: #ecfdf5;
-                color: #047857;
-                border-color: #a7f3d0;
+                background-color: #ecfdf5 !important;
+                color: #047857 !important;
+                border-color: #a7f3d0 !important;
             }
             .badge-poder {
-                background-color: #eff6ff;
-                color: #1d4ed8;
-                border-color: #bfdbfe;
+                background-color: #eff6ff !important;
+                color: #1d4ed8 !important;
+                border-color: #bfdbfe !important;
             }
             .doc-content {
                 display: flex;
@@ -986,13 +996,14 @@ function triggerPrintDocuments() {
                 align-items: center;
                 min-height: 400px;
                 margin-top: 15px;
-                background-color: #fff;
+                background-color: #ffffff !important;
                 box-sizing: border-box;
             }
             .doc-img {
                 max-width: 100%;
                 max-height: 80vh;
                 object-fit: contain;
+                background-color: #ffffff !important;
             }
             .doc-text {
                 width: 100%;
@@ -1003,21 +1014,38 @@ function triggerPrintDocuments() {
                 line-height: 1.5;
                 padding: 20px;
                 box-sizing: border-box;
-                border: 1px solid #e2e8f0;
-                background: #f8fafc;
+                border: 1px solid #cccccc !important;
+                background-color: #ffffff !important;
+                color: #000000 !important;
             }
             .doc-pdf {
                 width: 100%;
                 height: 80vh;
                 border: none;
+                background-color: #ffffff !important;
             }
             @media print {
-                body {
-                    background-color: #fff;
+                body, html {
+                    background-color: #ffffff !important;
+                    color: #000000 !important;
                 }
                 .document-page {
                     padding: 0;
                     margin: 0;
+                    background-color: #ffffff !important;
+                }
+                .doc-content {
+                    background-color: #ffffff !important;
+                    border: none;
+                    margin-top: 15px;
+                }
+                .doc-img {
+                    max-height: 85vh;
+                    background-color: #ffffff !important;
+                }
+                .doc-pdf {
+                    height: 85vh;
+                    background-color: #ffffff !important;
                 }
             }
         </style>

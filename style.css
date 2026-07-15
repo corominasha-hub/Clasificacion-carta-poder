@@ -1329,3 +1329,13 @@ textarea:focus-visible {
     border-radius: 12px;
     border: 1px solid var(--border-color);
 }
+
+@media print {
+    body, html {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+    }
+    #print-temp-iframe {
+        background-color: #ffffff !important;
+    }
+}
