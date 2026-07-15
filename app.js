@@ -1020,7 +1020,7 @@ function triggerPrintDocuments() {
             }
             .doc-pdf {
                 width: 100%;
-                height: 80vh;
+                height: 277mm;
                 border: none;
                 background-color: #ffffff !important;
             }
@@ -1044,7 +1044,7 @@ function triggerPrintDocuments() {
                     background-color: #ffffff !important;
                 }
                 .doc-pdf {
-                    height: 85vh;
+                    height: 277mm;
                     background-color: #ffffff !important;
                 }
             }
@@ -1061,7 +1061,7 @@ function triggerPrintDocuments() {
         
         let contentHtml = '';
         if (ext === 'pdf') {
-            contentHtml = `<iframe src="${record.file_path}" class="doc-pdf"></iframe>`;
+            contentHtml = `<iframe src="${record.file_path}#toolbar=0&navpanes=0&view=FitH" class="doc-pdf"></iframe>`;
         } else if (['jpg', 'jpeg', 'png', 'svg'].includes(ext)) {
             contentHtml = `<img src="${record.file_path}" class="doc-img" alt="Documento" />`;
         } else {
