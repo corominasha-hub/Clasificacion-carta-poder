@@ -883,7 +883,12 @@ function triggerPrintDocuments() {
     recordsToPrint = recordsToPrint.filter(r => r.file_path || r.extracto);
     
     if (recordsToPrint.length === 0) {
-        showToast("Sin documentos", `No hay documentos de tipo "${selectedType === 'todos' ? 'Todos' : selectedType}" para imprimir.`, "error");
+        const hasRejected = rejectedLogs.some(r => selectedType === "todos" || (r.tipo && r.tipo.toLowerCase() === selectedType.toLowerCase()));
+        let message = `No hay documentos activos (Aprobados o Pendientes) de tipo "${selectedType === 'todos' ? 'Todos' : selectedType}" para imprimir.`;
+        if (hasRejected) {
+            message += " Los registros con estado 'Duplicado' o 'Eliminado' no contienen archivos físicos para imprimir.";
+        }
+        showToast("Sin documentos", message, "error");
         playWarningBeep();
         return;
     }
