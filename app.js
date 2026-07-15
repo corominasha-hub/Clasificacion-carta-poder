@@ -869,7 +869,7 @@ function triggerExportCSV() {
     showToast("Exportación Exitosa", "Se ha descargado el archivo CSV.", "success");
 }
 
-// Open popup and trigger batch print of documents
+// Open hidden iframe and trigger batch print of documents to avoid popup blockers
 function triggerPrintDocuments() {
     const typeSelect = document.getElementById("admin-print-type");
     const selectedType = typeSelect ? typeSelect.value : "todos";
@@ -888,72 +888,50 @@ function triggerPrintDocuments() {
         return;
     }
     
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) {
-        showToast("Error", "No se pudo abrir la ventana de impresión. Por favor, permite ventanas emergentes.", "error");
-        playWarningBeep();
-        return;
+    showSpinner("Generando documento para imprimir...");
+
+    // Remove any existing print iframe
+    const existingIframe = document.getElementById("print-temp-iframe");
+    if (existingIframe) {
+        try {
+            document.body.removeChild(existingIframe);
+        } catch (_) {}
     }
+    
+    // Create new temporary iframe
+    const printIframe = document.createElement("iframe");
+    printIframe.id = "print-temp-iframe";
+    printIframe.style.position = "fixed";
+    printIframe.style.right = "0";
+    printIframe.style.bottom = "0";
+    printIframe.style.width = "0";
+    printIframe.style.height = "0";
+    printIframe.style.border = "none";
+    printIframe.style.visibility = "hidden";
+    
+    document.body.appendChild(printIframe);
     
     let html = `
     <!DOCTYPE html>
     <html lang="es">
     <head>
         <meta charset="UTF-8">
-        <title>Impresión de Documentos - SocioCheck AI</title>
+        <title>Impresión de Documentos</title>
         <style>
+            @page {
+                size: A4;
+                margin: 10mm;
+            }
             body {
                 font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
                 margin: 0;
                 padding: 0;
-                background-color: #f5f6f8;
-                color: #333;
-            }
-            .no-print-bar {
-                background: #1e293b;
-                color: #fff;
-                padding: 12px 24px;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
-                position: sticky;
-                top: 0;
-                z-index: 1000;
-            }
-            .no-print-bar span {
-                font-size: 14px;
-                font-weight: 500;
-            }
-            .btn-print {
-                background-color: #3b82f6;
-                color: white;
-                border: none;
-                padding: 8px 16px;
-                font-size: 14px;
-                font-weight: 600;
-                border-radius: 6px;
-                cursor: pointer;
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                transition: background-color 0.2s;
-            }
-            .btn-print:hover {
-                background-color: #2563eb;
-            }
-            .documents-container {
-                max-width: 900px;
-                margin: 30px auto;
-                padding: 0 20px;
+                background-color: #fff;
+                color: #000;
             }
             .document-page {
-                background: white;
-                border: 1px solid #e2e8f0;
-                border-radius: 8px;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-                padding: 30px;
-                margin-bottom: 40px;
+                padding: 20px;
+                margin-bottom: 20px;
                 page-break-after: always;
                 box-sizing: border-box;
             }
@@ -962,22 +940,22 @@ function triggerPrintDocuments() {
                 margin-bottom: 0;
             }
             .doc-header {
-                border-bottom: 2px solid #e2e8f0;
-                padding-bottom: 12px;
+                border-bottom: 2px solid #334155;
+                padding-bottom: 8px;
                 margin-bottom: 20px;
                 display: flex;
                 justify-content: space-between;
                 align-items: flex-start;
             }
             .doc-header-left h2 {
-                margin: 0 0 6px 0;
+                margin: 0 0 4px 0;
                 font-size: 18px;
                 color: #0f172a;
             }
             .doc-header-left p {
                 margin: 0;
-                font-size: 13px;
-                color: #64748b;
+                font-size: 12px;
+                color: #475569;
             }
             .doc-badge {
                 padding: 4px 10px;
@@ -985,30 +963,30 @@ function triggerPrintDocuments() {
                 font-size: 11px;
                 font-weight: 700;
                 text-transform: uppercase;
-                letter-spacing: 0.05em;
+                border: 1px solid #ccc;
             }
             .badge-carta {
                 background-color: #ecfdf5;
-                color: #059669;
+                color: #047857;
+                border-color: #a7f3d0;
             }
             .badge-poder {
                 background-color: #eff6ff;
-                color: #2563eb;
+                color: #1d4ed8;
+                border-color: #bfdbfe;
             }
             .doc-content {
                 display: flex;
                 justify-content: center;
                 align-items: center;
                 min-height: 400px;
-                margin-top: 20px;
-                background-color: #f8fafc;
-                border: 1px solid #f1f5f9;
-                border-radius: 6px;
-                overflow: hidden;
+                margin-top: 15px;
+                background-color: #fff;
+                box-sizing: border-box;
             }
             .doc-img {
                 max-width: 100%;
-                max-height: 75vh;
+                max-height: 80vh;
                 object-fit: contain;
             }
             .doc-text {
@@ -1020,55 +998,26 @@ function triggerPrintDocuments() {
                 line-height: 1.5;
                 padding: 20px;
                 box-sizing: border-box;
-                background: #fff;
-                align-self: stretch;
-                overflow-y: auto;
+                border: 1px solid #e2e8f0;
+                background: #f8fafc;
             }
             .doc-pdf {
                 width: 100%;
-                height: 75vh;
+                height: 80vh;
                 border: none;
             }
             @media print {
-                .no-print-bar {
-                    display: none;
-                }
                 body {
                     background-color: #fff;
                 }
-                .documents-container {
-                    max-width: 100%;
-                    margin: 0;
-                    padding: 0;
-                }
                 .document-page {
-                    border: none;
-                    box-shadow: none;
                     padding: 0;
                     margin: 0;
-                }
-                .doc-content {
-                    background-color: transparent;
-                    border: none;
-                    margin-top: 15px;
-                }
-                .doc-img {
-                    max-height: 85vh;
-                }
-                .doc-pdf {
-                    height: 85vh;
                 }
             }
         </style>
     </head>
     <body>
-        <div class="no-print-bar">
-            <span>Impresión por lotes: <strong>${recordsToPrint.length}</strong> documento(s) encontrado(s) de tipo <strong>"${selectedType === 'todos' ? 'Todos' : selectedType}"</strong></span>
-            <button class="btn-print" onclick="window.print()">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px;"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-                Imprimir Documentos
-            </button>
-        </div>
         <div class="documents-container">
     `;
     
@@ -1105,19 +1054,51 @@ function triggerPrintDocuments() {
     html += `
         </div>
         <script>
-            // Auto-trigger print dialog after resources are loaded
+            // Wait for all images/resources to load before triggering print dialog
             window.addEventListener('load', () => {
-                setTimeout(() => {
-                    window.print();
-                }, 800);
+                const images = Array.from(document.images);
+                const imagePromises = images.map(img => {
+                    if (img.complete) return Promise.resolve();
+                    return new Promise(resolve => {
+                        img.onload = resolve;
+                        img.onerror = resolve;
+                    });
+                });
+                
+                Promise.all(imagePromises).then(() => {
+                    setTimeout(() => {
+                        window.focus();
+                        window.print();
+                        window.parent.postMessage('print-finished', '*');
+                    }, 500);
+                });
             });
         </script>
     </body>
     </html>
     `;
+
+    // Handler to clean up iframe once print dialog receives event
+    const messageHandler = (event) => {
+        if (event.data === 'print-finished') {
+            hideSpinner();
+            window.removeEventListener('message', messageHandler);
+            setTimeout(() => {
+                const iframe = document.getElementById("print-temp-iframe");
+                if (iframe) {
+                    try {
+                        document.body.removeChild(iframe);
+                    } catch (_) {}
+                }
+            }, 2000);
+        }
+    };
+    window.addEventListener('message', messageHandler);
     
-    printWindow.document.write(html);
-    printWindow.document.close();
+    const iframeDoc = printIframe.contentWindow.document || printIframe.contentDocument;
+    iframeDoc.open();
+    iframeDoc.write(html);
+    iframeDoc.close();
 }
 
 // Setup PWA Events
